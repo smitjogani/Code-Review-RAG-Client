@@ -1,0 +1,16 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Outer Ring (Obsidian) -->
+  <path d="M16 4C9.37258 4 4 9.37258 4 16C4 22.6274 9.37258 28 16 28C22.6274 28 28 22.6274 28 16C28 9.37258 22.6274 4 16 4ZM16 25C11.0294 25 7 20.9706 7 16C7 11.0294 11.0294 7 16 7C20.9706 7 25 11.0294 25 16C25 20.9706 20.9706 25 16 25Z" fill="#09090B"/>
+  
+  <!-- Central Architecture Line -->
+  <rect x="15.5" y="10" width="1" height="12" rx="0.5" fill="#09090B" opacity="0.3"/>
+  
+  <!-- Lineage Nodes (Brand Colors) -->
+  <circle cx="16" cy="11" r="2.5" fill="#10B981"/> <!-- Emerald -->
+  <circle cx="16" cy="21" r="2.5" fill="#EF4444"/> <!-- Red -->
+  <circle cx="16" cy="16" r="2.5" fill="#3B82F6"/> <!-- Blue -->
+  
+  <!-- Technical Accents -->
+  <path d="M12 16L14 16" stroke="#09090B" stroke-width="1" stroke-linecap="round"/>
+  <path d="M18 16L20 16" stroke="#09090B" stroke-width="1" stroke-linecap="round"/>
+</svg>
