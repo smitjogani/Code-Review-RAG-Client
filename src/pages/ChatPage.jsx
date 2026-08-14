@@ -16,11 +16,18 @@ import {
   Sparkles,
   ChevronRight,
 } from "lucide-react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { createProject, getProjectStatus, chatWithProject } from "../lib/api";
+import {
+  DEMO_PROJECT,
+  DEMO_PROJECT_ID,
+  DEMO_ANALYSIS_REPORT,
+  getDemoChatResponse,
+  parseAnalysisReport,
+} from "../data/demoProject";
 
 const MultiSelectSearch = ({ label, placeholder, options, selected, onChange }) => {
   const [query, setQuery] = useState("");
@@ -177,9 +184,12 @@ const ChatPage = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isDemoMode = searchParams.get("demo") === "true";
+  const projectParam = searchParams.get("project");
 
   const [showUploadModal, setShowUploadModal] = useState(
-    location.state?.showUploadModal || false
+    Boolean(location.state?.showUploadModal && !isDemoMode && !projectParam)
   );
   const [showSidebar, setShowSidebar] = useState(false);
   const [projectId, setProjectId] = useState(null);
@@ -206,6 +216,52 @@ const ChatPage = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const loadCompletedProject = (pid, reportText, projectMeta = {}) => {
+    const { report, suggestions } = parseAnalysisReport(reportText);
+    const firstMsgId = "report-" + Date.now();
+    setProjectId(pid);
+    setProjectData((prev) => ({
+      ...prev,
+      githubUrl: projectMeta.repoUrl || DEMO_PROJECT.repoUrl,
+      language: projectMeta.language ? projectMeta.language.split(", ") : ["TypeScript", "Node.js"],
+      framework: projectMeta.framework ? projectMeta.framework.split(", ") : ["Express", "React"],
+      tools: projectMeta.tools ? projectMeta.tools.split(", ") : ["PostgreSQL", "Redis", "Docker"],
+    }));
+    setShowUploadModal(false);
+    setTypingMsgId(firstMsgId);
+    setMessages([
+      {
+        id: firstMsgId,
+        role: "assistant",
+        content: report,
+        sources: [],
+        suggestions,
+      },
+    ]);
+  };
+
+  useEffect(() => {
+    if (isDemoMode) {
+      loadCompletedProject(DEMO_PROJECT_ID, DEMO_ANALYSIS_REPORT, DEMO_PROJECT);
+      toast.success("Demo project loaded — ready for screenshots");
+      return;
+    }
+
+    if (projectParam) {
+      getProjectStatus(projectParam)
+        .then((statusRes) => {
+          if (statusRes.data.status === "completed" && statusRes.data.analysisReport) {
+            loadCompletedProject(projectParam, statusRes.data.analysisReport, statusRes.data);
+          } else {
+            toast.error("Project not ready yet. Use ?demo=true for offline demo.");
+          }
+        })
+        .catch(() => {
+          toast.error("Could not load project. Use ?demo=true for offline demo.");
+        });
+    }
+  }, [isDemoMode, projectParam]);
 
   // Cleanup interval on unmount
   useEffect(() => {
@@ -365,14 +421,23 @@ const ChatPage = () => {
     setIsTyping(true);
 
     try {
-      const response = await chatWithProject(projectId, userMsg.content);
+      let responseData;
+
+      if (isDemoMode) {
+        await new Promise((r) => setTimeout(r, 800));
+        responseData = getDemoChatResponse(messageText);
+      } else {
+        const response = await chatWithProject(projectId, userMsg.content);
+        responseData = response.data;
+      }
+
       const newAiId = Date.now() + 1;
       const aiMsg = {
         id: newAiId,
         role: "assistant",
-        content: response.data.answer,
-        sources: response.data.sources,
-        suggestions: response.data.suggestions,
+        content: responseData.answer,
+        sources: responseData.sources,
+        suggestions: responseData.suggestions,
       };
       setMessages((prev) => [...prev, aiMsg]);
       setTypingMsgId(newAiId);
@@ -771,7 +836,9 @@ const ChatPage = () => {
             className="w-full text-left px-3 py-3 text-xs font-medium text-obsidian bg-white border border-border shadow-sm rounded-lg flex items-center justify-between group hover:border-obsidian/30 transition-all hover:shadow-md"
           >
             <span className="truncate">
-              {projectData.file
+              {projectData.githubUrl && (isDemoMode || projectId)
+                ? "ShopFlow E-Commerce API"
+                : projectData.file
                 ? projectData.file.name
                 : projectData.githubUrl
                   ? "GitHub Repo"
