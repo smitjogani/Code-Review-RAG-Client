@@ -15,6 +15,7 @@ import {
   Info,
   Sparkles,
   ChevronRight,
+  LogOut,
 } from "lucide-react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
@@ -202,12 +203,18 @@ const ChatPage = () => {
   const [projectData, setProjectData] = useState({
     file: null,
     githubUrl: "",
-    language: [],
-    framework: [],
-    tools: [],
   });
 
   const messagesEndRef = useRef(null);
+
+  const handleLogout = async () => {
+    try {
+      localStorage.removeItem('user');
+      navigate('/');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -224,9 +231,6 @@ const ChatPage = () => {
     setProjectData((prev) => ({
       ...prev,
       githubUrl: projectMeta.repoUrl || DEMO_PROJECT.repoUrl,
-      language: projectMeta.language ? projectMeta.language.split(", ") : ["TypeScript", "Node.js"],
-      framework: projectMeta.framework ? projectMeta.framework.split(", ") : ["Express", "React"],
-      tools: projectMeta.tools ? projectMeta.tools.split(", ") : ["PostgreSQL", "Redis", "Docker"],
     }));
     setShowUploadModal(false);
     setTypingMsgId(firstMsgId);
@@ -316,16 +320,12 @@ const ChatPage = () => {
         return;
       }
     }
-    setSetupStep(2);
+    // Skip step 2 and start directly
+    handleStartAnalysis();
   };
 
   // Start Analysis (Create Project)
   const handleStartAnalysis = async () => {
-    if (projectData.language.length === 0 || projectData.framework.length === 0) {
-      toast.error("Please fill in Language and Framework");
-      return;
-    }
-
     setIsUploading(true);
     setUploadProgress(10); // Initial progress
 
@@ -333,9 +333,6 @@ const ChatPage = () => {
       const formData = new FormData();
       formData.append("name", `Project - ${Date.now()} `);
       formData.append("type", sourceType);
-      formData.append("language", projectData.language.join(", "));
-      formData.append("framework", projectData.framework.join(", "));
-      formData.append("tools", projectData.tools.join(", "));
 
       if (sourceType === "zip") {
         formData.append("file", projectData.file);
@@ -344,7 +341,7 @@ const ChatPage = () => {
       }
 
       const response = await createProject(formData);
-      const pid = response.data._id;
+      const pid = response.data.data._id;
       setProjectId(pid);
       setUploadProgress(50);
 
@@ -352,7 +349,7 @@ const ChatPage = () => {
       const interval = setInterval(async () => {
         try {
           const statusRes = await getProjectStatus(pid);
-          const status = statusRes.data.status;
+          const status = statusRes.data.data.status;
 
           if (status === "completed") {
             clearInterval(interval);
@@ -360,7 +357,7 @@ const ChatPage = () => {
             setIsUploading(false);
             setShowUploadModal(false);
 
-            let reportText = statusRes.data.analysisReport || "Analysis complete, but no report was generated.";
+            let reportText = statusRes.data.data.analysisReport || "Analysis complete, but no report was generated.";
             let parsedSuggestions = [];
 
             if (/---+?\s*SUGGESTED_QUESTIONS\s*---+?/i.test(reportText)) {
@@ -428,7 +425,7 @@ const ChatPage = () => {
         responseData = getDemoChatResponse(messageText);
       } else {
         const response = await chatWithProject(projectId, userMsg.content);
-        responseData = response.data;
+        responseData = response.data.data;
       }
 
       const newAiId = Date.now() + 1;
@@ -486,7 +483,7 @@ const ChatPage = () => {
                   <Loader2 className="animate-spin text-obsidian w-12 h-12" />
                 </div>
                 <div className="text-center font-mono text-xs text-subtle uppercase tracking-widest mb-2">
-                  Analyzing {projectData.framework} repository...
+                  Analyzing repository...
                 </div>
                 <div className="w-full bg-zinc-100 rounded-full h-2 overflow-hidden">
                   <div
@@ -559,7 +556,7 @@ const ChatPage = () => {
                       onClick={handleNextStep}
                       className="w-full py-3 bg-obsidian text-white rounded-lg font-mono text-xs uppercase hover:bg-zinc-800 transition-colors shadow-lg shadow-obsidian/20"
                     >
-                      Next: Project Details
+                      Start Analysis
                     </button>
 
                     {/* Technical Notes */}
@@ -608,7 +605,7 @@ const ChatPage = () => {
                         label="Programming Language"
                         placeholder="Select languages (e.g. JavaScript, Python)"
                         options={["JavaScript", "TypeScript", "Node.js", "Python", "Java", "C#", "Go", "Rust", "PHP", "Ruby", "C++", "Swift", "Kotlin"]}
-                        selected={projectData.language}
+                        selected={projectData.language || []}
                         onChange={(val) => setProjectData(p => ({ ...p, language: val }))}
                       />
 
@@ -616,7 +613,7 @@ const ChatPage = () => {
                         label="Framework / Library Ecosystem"
                         placeholder="Select frameworks (e.g. React, Next.js, Django)"
                         options={["React", "Next.js", "Vue", "Angular", "Svelte", "Express", "Django", "Flask", "Spring Boot", ".NET Core", "Laravel", "Ruby on Rails", "NestJS"]}
-                        selected={projectData.framework}
+                        selected={projectData.framework || []}
                         onChange={(val) => setProjectData(p => ({ ...p, framework: val }))}
                       />
 
@@ -624,7 +621,7 @@ const ChatPage = () => {
                         label="Tools, DBs & Integrations"
                         placeholder="Select tools (e.g. Tailwind, Redis, Docker)"
                         options={["TailwindCSS", "PostgreSQL", "MongoDB", "Redis", "Docker", "Kubernetes", "GraphQL", "Prisma", "AWS", "Firebase", "Redux", "Zustand", "Material UI"]}
-                        selected={projectData.tools}
+                        selected={projectData.tools || []}
                         onChange={(val) => setProjectData(p => ({ ...p, tools: val }))}
                       />
                     </div>
@@ -887,6 +884,12 @@ const ChatPage = () => {
               <span className="text-[10px] font-bold">ALL SYSTEMS NOMINAL</span>
             </div>
           </div>
+          <button
+            onClick={handleLogout}
+            className="w-full py-2 flex items-center justify-center gap-2 text-[10px] font-mono uppercase text-subtle hover:text-brand-red hover:bg-brand-red/5 rounded-md transition-colors border border-transparent hover:border-brand-red/10"
+          >
+            <LogOut size={12} /> Logout
+          </button>
         </div>
       </aside>
 
@@ -928,10 +931,10 @@ const ChatPage = () => {
             >
               {/* Avatar */}
               <div
-                className={`w-7 h-7 md:w-8 md:h-8 rounded-sm shrink-0 flex items-center justify-center text-white ${msg.role === "assistant" ? "bg-obsidian" : "bg-zinc-200"}`}
+                className={`w-7 h-7 md:w-8 md:h-8 shrink-0 flex items-center justify-center text-white ${msg.role === "assistant" ? "" : "bg-zinc-200 rounded-full"}`}
               >
                 {msg.role === "assistant" ? (
-                  <img src="/favicon.svg" alt="O" className="w-4 h-4" />
+                  <img src="/favicon.svg" alt="O" className="w-6 h-6 md:w-8 md:h-8" />
                 ) : (
                   <div className="w-4 h-4 bg-subtle rounded-full"></div>
                 )}
@@ -1053,8 +1056,8 @@ const ChatPage = () => {
           {isTyping && (
             <div className="flex gap-2 md:gap-4 max-w-4xl mx-auto">
               {/* Avatar */}
-              <div className="w-7 h-7 md:w-8 md:h-8 rounded-sm shrink-0 flex items-center justify-center text-white bg-obsidian">
-                <img src="/favicon.svg" alt="O" className="w-4 h-4 animate-pulse" />
+              <div className="w-7 h-7 md:w-8 md:h-8 shrink-0 flex items-center justify-center text-white">
+                <img src="/favicon.svg" alt="O" className="w-6 h-6 md:w-8 md:h-8 animate-pulse" />
               </div>
 
               {/* Content */}
@@ -1082,13 +1085,7 @@ const ChatPage = () => {
             className="max-w-3xl mx-auto relative group"
           >
             <div className="absolute inset-0 bg-linear-to-r from-brand-blue/10 to-brand-red/10 rounded-lg blur opacity-20 group-hover:opacity-40 transition-opacity pointer-events-none"></div>
-            <div className="relative bg-white border border-border rounded-lg shadow-sm flex items-center p-1 md:p-1.5 gap-1 md:gap-2 focus-within:border-obsidian/40 focus-within:ring-1 focus-within:ring-obsidian/5 transition-all">
-              <button
-                type="button"
-                className="p-2 text-zinc-400 hover:text-obsidian transition-colors shrink-0"
-              >
-                <Paperclip size={18} />
-              </button>
+            <div className="relative bg-white border border-border rounded-lg shadow-sm flex items-center p-1 md:p-1.5 gap-1 md:gap-2 focus-within:border-obsidian/40 focus-within:ring-1 focus-within:ring-obsidian/5 transition-all pl-3">
               <input
                 type="text"
                 value={input}
