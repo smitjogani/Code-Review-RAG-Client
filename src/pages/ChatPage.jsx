@@ -22,6 +22,9 @@ import {
   Bot,
   Cpu,
   Terminal,
+  Eye,
+  EyeOff,
+  ExternalLink,
 } from "lucide-react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
@@ -202,6 +205,7 @@ const ChatPage = () => {
   const [projectId, setProjectId] = useState(null);
   const [pollingInterval, setPollingInterval] = useState(null);
   const [showManual, setShowManual] = useState(false);
+  const [showToken, setShowToken] = useState(false);
 
   // Setup Wizard State
   const [setupStep, setSetupStep] = useState(1);
@@ -420,6 +424,11 @@ const ChatPage = () => {
         toast.error("Please enter a valid GitHub repository URL");
         return;
       }
+      
+      if (projectData.githubToken && !projectData.githubToken.startsWith("gh")) {
+        toast.error("Invalid GitHub Token format. Typically starts with 'ghp_', 'github_pat_', etc.");
+        return;
+      }
     }
     // Skip step 2 and start directly
     handleStartAnalysis();
@@ -489,8 +498,10 @@ const ChatPage = () => {
             toast.success("Project analysis complete");
           } else if (status === "failed") {
             clearInterval(interval);
+            setPollingInterval(null);
             setIsUploading(false);
-            toast.error("Project processing failed on server.");
+            const errMsg = statusRes.data.data.errorMessage || "Project processing failed on server.";
+            toast.error(errMsg, { duration: 6000 });
           } else {
             // Slowly increment progress fake visual
             setUploadProgress((prev) => Math.min(prev + 5, 90));
@@ -649,7 +660,7 @@ const ChatPage = () => {
                           </div>
                           <div className="relative mt-2">
                             <input
-                              type="password"
+                              type={showToken ? "text" : "password"}
                               placeholder="Personal Access Token (optional for public)"
                               value={projectData.githubToken || ""}
                               onChange={(e) =>
@@ -658,12 +669,30 @@ const ChatPage = () => {
                                   githubToken: e.target.value,
                                 }))
                               }
-                              className="w-full pl-4 pr-4 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:border-obsidian transition-colors font-mono"
+                              className="w-full pl-4 pr-10 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:border-obsidian transition-colors font-mono"
                             />
+                            <button
+                              type="button"
+                              onClick={() => setShowToken(!showToken)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-obsidian transition-colors"
+                            >
+                              {showToken ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
                           </div>
-                          <p className="text-xs text-subtle px-1">
-                            * Provide a PAT to analyze private repositories.
-                          </p>
+                          <div className="flex items-start gap-1.5 mt-2 px-1">
+                            <Info className="w-3.5 h-3.5 text-zinc-400 mt-0.5 shrink-0" />
+                            <p className="text-[11px] text-zinc-500 leading-tight">
+                              Private repos require a PAT with <code className="bg-zinc-100 text-obsidian px-1 py-0.5 rounded font-mono">repo</code> scope.{" "}
+                              <a 
+                                href="https://github.com/settings/tokens/new" 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-obsidian hover:underline inline-flex items-center gap-0.5 font-medium"
+                              >
+                                Generate one here <ExternalLink size={10} />
+                              </a>
+                            </p>
+                          </div>
                         </div>
                       )}
                     </div>

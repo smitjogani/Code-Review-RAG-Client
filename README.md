@@ -2,26 +2,28 @@
 
 ![Oriva UI](https://via.placeholder.com/1200x600?text=Oriva+Code+Review+RAG)
 
-Oriva is an advanced AI-powered codebase analysis and chat assistant. This repository contains the Frontend Client, built with a heavy emphasis on a premium, glassmorphism UI, secure data handling, and seamless developer experience.
+## 🚀 The Problem It Solves
+Modern codebases are massive and complex. When developers join a new project or attempt to debug a systemic issue, they spend hours reading through disconnected files, tracing dependencies, and trying to understand architectural patterns. Traditional AI tools lack full context—they only understand the specific snippets you paste into them.
 
-## Key Features
+**Oriva** solves this by acting as a highly intelligent, context-aware Principal Engineer. By ingesting your entire codebase (either via ZIP upload or public/private GitHub repositories) and storing it in a vector database, Oriva allows you to chat directly with your entire codebase. It instantly understands the structure, dependencies, and logic of your code, enabling you to identify architectural flaws, generate specialized IDE prompts to fix bugs, and onboard onto new projects in minutes.
 
-- **Premium UI/UX**: Designed with a sleek dark/light mode aesthetic using **Tailwind CSS**, smooth micro-animations, and custom glassmorphism components.
-- **End-to-End Payload Encryption**: Utilizes `CryptoJS` to securely encrypt all sensitive outgoing data (like credentials) and decrypt all incoming API responses using AES-256 symmetric encryption, completely masking network traffic.
-- **"Get Prompt for Fix" AI Generator**: When the RAG engine identifies a codebase issue, users can instantly generate a highly tailored, persona-driven prompt (e.g., "Principal Architect") formatted specifically for tools like VS Code Copilot, Cursor, or Claude.
-- **Flexible Codebase Ingestion**: Users can provide context to the AI by either uploading a `.zip` file of their codebase or providing a public GitHub repository URL.
-- **Intelligent Markdown Chat**: The chat interface fully supports rendering GitHub Flavored Markdown, syntax-highlighted code blocks, tables, and dynamically displays the specific source files the AI referenced to generate its answer.
-- **Secure Authentication**: JWT-based authentication flow with HTTP-only cookies and protected routing.
+## ✨ Key Features
+- **Intelligent RAG Engine**: Combines Google's Gemini LLM with Pinecone Vector DB to answer questions with deep context spanning your entire codebase.
+- **GitHub PAT Support**: Securely ingest both public and private GitHub repositories using Personal Access Tokens.
+- **"Get Prompt for Fix" AI Generator**: When the AI finds an issue, one click generates a token-optimized, persona-driven prompt tailored for specific IDEs (Cursor, VS Code Copilot, Claude, Antigravity).
+- **End-to-End Payload Encryption**: Zero data leakage. All sensitive requests and API responses are encrypted using AES-256 (`CryptoJS`) before traversing the network.
+- **Instant Demo Mode**: "Skip Login" capability for users who want to bypass backend authentication and test the UI/UX instantly.
+- **Smart Error Handling**: Clear, user-friendly UI errors directly piped from the backend to the frontend (e.g., catching missing GitHub PAT permissions).
+- **Rich Markdown UI**: Beautiful glassmorphism UI with Tailwind CSS, rendering syntax-highlighted code blocks, tables, and AI reference sources gracefully.
 
-## Tech Stack
-
-- **Framework**: React.js (via Vite)
-- **Styling**: Tailwind CSS
-- **Icons**: Lucide React
-- **Cryptography**: CryptoJS (AES-256)
-- **Markdown Processing**: React-Markdown, Remark-GFM
-- *Routing**: React Router DOM
-- **HTTP Client**: Axios (with custom encryption interceptors)
+## 🛠 Tech Stack
+- **Frontend**: React.js (Vite), Tailwind CSS, Lucide React, React-Markdown.
+- **Backend**: Node.js, Express.js.
+- **Database**: MongoDB (via Mongoose) for user/project metadata.
+- **Vector Database (RAG)**: Pinecone.
+- **AI / LLM**: Google Generative AI (Gemini 1.5 Pro/Flash).
+- **Security**: CryptoJS (AES-256 Symmetric Encryption), JWT Authentication, bcryptjs.
+- **File Processing**: `multer`, `adm-zip`, `simple-git`.
 
 ## Getting Started
 
