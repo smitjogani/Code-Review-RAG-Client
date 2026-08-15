@@ -144,6 +144,17 @@ const AuthPage = () => {
                 </>
               )}
             </button>
+            
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.setItem('user', JSON.stringify({ name: 'Demo User', email: 'demo@example.com', role: 'user' }));
+                navigate('/chat?demo=true');
+              }}
+              className="w-full bg-zinc-100 hover:bg-zinc-200 text-obsidian font-medium py-3 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] mt-2"
+            >
+              Skip Login (Try Demo Mode)
+            </button>
           </form>
 
           {/* Toggle */}

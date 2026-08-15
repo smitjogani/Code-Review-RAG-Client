@@ -16,6 +16,12 @@ import {
   Sparkles,
   ChevronRight,
   LogOut,
+  Wand2,
+  Copy,
+  Check,
+  Bot,
+  Cpu,
+  Terminal,
 } from "lucide-react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
@@ -44,7 +50,7 @@ const MultiSelectSearch = ({ label, placeholder, options, selected, onChange }) 
         {label}
       </label>
       <div
-        className="w-full flex flex-wrap gap-2 p-2 border border-zinc-200 rounded-lg bg-white focus-within:border-obsidian transition-colors min-h-[42px]"
+        className="w-full flex flex-wrap gap-2 p-2 border border-zinc-200 rounded-lg bg-white focus-within:border-obsidian transition-colors min-h-10.5"
       >
         {selected.map(item => (
           <span key={item} className="px-2 py-1 bg-zinc-100/80 text-obsidian text-xs rounded border border-zinc-200 font-mono flex items-center gap-1.5">
@@ -61,7 +67,7 @@ const MultiSelectSearch = ({ label, placeholder, options, selected, onChange }) 
           onFocus={() => setIsOpen(true)}
           onBlur={() => setTimeout(() => setIsOpen(false), 150)}
           placeholder={selected.length === 0 ? placeholder : ""}
-          className="flex-1 bg-transparent text-sm focus:outline-none min-w-[120px] pb-1 pt-1 font-body text-obsidian"
+          className="flex-1 bg-transparent text-sm focus:outline-none min-w-30 pb-1 pt-1 font-body text-obsidian"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && query.trim()) {
               e.preventDefault();
@@ -201,9 +207,104 @@ const ChatPage = () => {
   const [setupStep, setSetupStep] = useState(1);
   const [sourceType, setSourceType] = useState("zip");
   const [projectData, setProjectData] = useState({
+    name: "",
+    type: "",
+    language: [],
     file: null,
     githubUrl: "",
+    githubToken: "",
   });
+
+  // Prompt Feature States
+  const [promptModalData, setPromptModalData] = useState(false);
+  const [selectedPersona, setSelectedPersona] = useState("Software Architect");
+  const [selectedIde, setSelectedIde] = useState("VS Code Copilot");
+  const [promptContext, setPromptContext] = useState("");
+  const [copiedPrompt, setCopiedPrompt] = useState(false);
+
+  const PERSONA_OPTIONS = [
+    "Software Architect",
+    "Security Specialist",
+    "Performance Engineer",
+    "SDE-2",
+    "Frontend Expert",
+    "Backend Expert"
+  ];
+
+  const IDE_OPTIONS = [
+    "VS Code Copilot",
+    "Cursor",
+    "Claude",
+    "Antigravity",
+    "Codex"
+  ];
+
+  const generateTailoredPrompt = () => {
+    let personaInstruction = "";
+    switch (selectedPersona) {
+      case "Software Architect":
+        personaInstruction = "Role: Principal Software Architect.\nObjective: Implement robust, scalable, and clean code solutions. Follow SOLID principles and optimal design patterns.";
+        break;
+      case "Security Specialist":
+        personaInstruction = "Role: Senior Application Security Engineer.\nObjective: Ensure strict adherence to OWASP guidelines. Prioritize vulnerability prevention and secure coding practices.";
+        break;
+      case "Performance Engineer":
+        personaInstruction = "Role: Performance Engineering Specialist.\nObjective: Optimize for minimal latency, reduced time complexity, and efficient memory usage.";
+        break;
+      case "SDE-2":
+        personaInstruction = "Role: Senior Software Engineer (SDE-2).\nObjective: Produce production-ready, highly maintainable, and well-tested code.";
+        break;
+      case "Frontend Expert":
+        personaInstruction = "Role: Frontend Architecture Expert.\nObjective: Focus on responsive design, WCAG accessibility, and modern React best practices.";
+        break;
+      case "Backend Expert":
+        personaInstruction = "Role: Backend Systems Expert.\nObjective: Ensure database query efficiency, RESTful API standards, and comprehensive error handling.";
+        break;
+      default:
+        personaInstruction = `Role: Expert ${selectedPersona}.`;
+    }
+
+    let finalPrompt = "";
+    const baseTemplate = `${personaInstruction}\n\nContext:\n${promptContext}\n\nTask:\nPlease analyze the provided context and implement the necessary code changes to fully resolve the issue. Provide only the updated code blocks or files, ensuring the solution is complete, tested, and optimized for performance. Focus strictly on answering the prompt with zero fluff.`;
+
+    if (selectedIde === "VS Code Copilot") {
+      finalPrompt = `@workspace\n${baseTemplate}`;
+    } else if (selectedIde === "Cursor") {
+      finalPrompt = `[Use Edit Mode]\n${baseTemplate}`;
+    } else {
+      finalPrompt = baseTemplate;
+    }
+
+    return finalPrompt;
+  };
+
+  const handleOpenPromptModal = (content) => {
+    setPromptContext(content);
+
+    // Auto-detect persona
+    const lowerContent = content.toLowerCase();
+    if (lowerContent.includes('security') || lowerContent.includes('vulnerability') || lowerContent.includes('owasp')) {
+      setSelectedPersona('Security Specialist');
+    } else if (lowerContent.includes('performance') || lowerContent.includes('slow') || lowerContent.includes('optimize')) {
+      setSelectedPersona('Performance Engineer');
+    } else if (lowerContent.includes('frontend') || lowerContent.includes('react') || lowerContent.includes('ui/ux')) {
+      setSelectedPersona('Frontend Expert');
+    } else if (lowerContent.includes('backend') || lowerContent.includes('database') || lowerContent.includes('api')) {
+      setSelectedPersona('Backend Expert');
+    } else if (lowerContent.includes('test') || lowerContent.includes('jest') || lowerContent.includes('coverage')) {
+      setSelectedPersona('SDE-2');
+    } else {
+      setSelectedPersona('Software Architect');
+    }
+
+    setPromptModalData(true);
+  };
+
+  const handleCopyPrompt = () => {
+    navigator.clipboard.writeText(generateTailoredPrompt());
+    setCopiedPrompt(true);
+    setTimeout(() => setCopiedPrompt(false), 2000);
+  };
 
   const messagesEndRef = useRef(null);
 
@@ -338,6 +439,9 @@ const ChatPage = () => {
         formData.append("file", projectData.file);
       } else {
         formData.append("repoUrl", projectData.githubUrl);
+        if (projectData.githubToken) {
+          formData.append("githubToken", projectData.githubToken);
+        }
       }
 
       const response = await createProject(formData);
@@ -459,11 +563,9 @@ const ChatPage = () => {
     <div className="h-screen w-full bg-canvas flex overflow-hidden font-body text-obsidian relative">
       {/* Upload/Setup Modal Overlay */}
       {showUploadModal && (
-        <div className="absolute inset-0 z-[100] bg-zinc-950/20 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+        <div className="absolute inset-0 z-100 bg-zinc-950/20 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
           <div className="bg-white border border-border shadow-2xl rounded-2xl w-full max-w-lg p-5 sm:p-6 relative animate-in fade-in zoom-in duration-300">
-            <div className="absolute top-0 left-0 w-full h-4 overflow-hidden rounded-t-2xl pointer-events-none">
-              <div className="w-full h-1 bg-obsidian transition-all duration-300"></div>
-            </div>
+
 
             {/* Wizard Header */}
             <div className="mb-4 sm:mb-5">
@@ -473,7 +575,7 @@ const ChatPage = () => {
               <p className="text-xs sm:text-sm text-subtle leading-relaxed">
                 {isUploading
                   ? "decoding infrastructure & logic structures..."
-                  : `Step ${setupStep} of 2 - Configure Project Source`}
+                  : "Configure Project Source"}
               </p>
             </div>
 
@@ -511,7 +613,7 @@ const ChatPage = () => {
                       </button>
                     </div>
 
-                    <div className="min-h-[100px] flex flex-col justify-center">
+                    <div className="min-h-25 flex flex-col justify-center">
                       {sourceType === "zip" ? (
                         <div className="relative group border-2 border-dashed border-zinc-200 rounded-xl p-5 text-center hover:border-obsidian/30 transition-colors">
                           <input
@@ -545,8 +647,22 @@ const ChatPage = () => {
                               className="w-full pl-10 pr-4 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:border-obsidian transition-colors font-mono"
                             />
                           </div>
+                          <div className="relative mt-2">
+                            <input
+                              type="password"
+                              placeholder="Personal Access Token (optional for public)"
+                              value={projectData.githubToken || ""}
+                              onChange={(e) =>
+                                setProjectData((prev) => ({
+                                  ...prev,
+                                  githubToken: e.target.value,
+                                }))
+                              }
+                              className="w-full pl-4 pr-4 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:border-obsidian transition-colors font-mono"
+                            />
+                          </div>
                           <p className="text-xs text-subtle px-1">
-                            * Repository must be public.
+                            * Provide a PAT to analyze private repositories.
                           </p>
                         </div>
                       )}
@@ -571,7 +687,7 @@ const ChatPage = () => {
                       </div>
                       <ul className="space-y-3">
                         <li className="flex items-start gap-3 text-[11px] text-zinc-600 leading-relaxed">
-                          <div className="w-1.5 h-1.5 rounded-full bg-zinc-300 mt-1.5 flex-shrink-0"></div>
+                          <div className="w-1.5 h-1.5 rounded-full bg-zinc-300 mt-1.5 shrink-0"></div>
                           <p>
                             Large repositories (
                             <span className="font-mono text-obsidian font-bold">
@@ -586,7 +702,7 @@ const ChatPage = () => {
                           </p>
                         </li>
                         <li className="flex items-start gap-3 text-[11px] text-zinc-600 leading-relaxed">
-                          <div className="w-1.5 h-1.5 rounded-full bg-zinc-300 mt-1.5 flex-shrink-0"></div>
+                          <div className="w-1.5 h-1.5 rounded-full bg-zinc-300 mt-1.5 shrink-0"></div>
                           <p>
                             For optimal accuracy, upload projects with a{" "}
                             <strong>single language/framework</strong> (e.g.,
@@ -650,7 +766,7 @@ const ChatPage = () => {
 
       {/* Manual Modal */}
       {showManual && (
-        <div className="absolute inset-0 z-[60] bg-white/95 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="absolute inset-0 z-60 bg-white/95 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-border shadow-2xl rounded-xl w-full max-w-2xl p-8 relative overflow-hidden animate-in fade-in zoom-in duration-300 max-h-[90vh] flex flex-col">
             <div className="absolute top-0 left-0 w-full h-1 bg-obsidian"></div>
             <button
@@ -792,22 +908,9 @@ const ChatPage = () => {
 
       {/* Sidebar */}
       <aside
-        className={`w-[280px] sm:w-64 border-r border-border bg-zinc-50/50 flex flex-col p-4 md:p-6 fixed md:static inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out md:translate-x-0 ${showSidebar ? "bg-white translate-x-0 shadow-2xl" : "-translate-x-full"}`}
+        className={`w-70 sm:w-64 border-r border-border bg-zinc-50/50 flex flex-col p-4 md:p-6 fixed md:static inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out md:translate-x-0 ${showSidebar ? "bg-white translate-x-0 shadow-2xl" : "-translate-x-full"}`}
       >
         <div className="flex flex-col gap-6 mb-8 px-1 md:px-2">
-          <Link
-            to="/"
-            className="flex items-center gap-2 text-xs text-subtle hover:text-obsidian transition-all group"
-          >
-            <ArrowLeft
-              size={14}
-              className="group-hover:-translate-x-1 transition-transform"
-            />
-            <span className="font-mono text-[9px] md:text-[10px] uppercase tracking-wider font-bold">
-              Return Home
-            </span>
-          </Link>
-
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <img src="/favicon.svg" alt="Oravia" className="w-6 h-6" />
@@ -836,12 +939,12 @@ const ChatPage = () => {
               {projectData.githubUrl && (isDemoMode || projectId)
                 ? "ShopFlow E-Commerce API"
                 : projectData.file
-                ? projectData.file.name
-                : projectData.githubUrl
-                  ? "GitHub Repo"
-                  : projectId
-                    ? `Audit Session ${projectId.substr(0, 4)} `
-                    : "Initialize Audit"}
+                  ? projectData.file.name
+                  : projectData.githubUrl
+                    ? "GitHub Repo"
+                    : projectId
+                      ? `Audit Session ${projectId.substr(0, 4)} `
+                      : "Initialize Audit"}
             </span>
             <div className="w-2 h-2 rounded-full bg-brand-emerald animate-pulse"></div>
           </button>
@@ -908,7 +1011,7 @@ const ChatPage = () => {
               <span className="font-mono text-[10px] text-subtle hidden lg:inline shrink-0">
                 SESSION_ID:
               </span>
-              <span className="font-mono text-[10px] md:text-xs text-obsidian truncate max-w-[120px] sm:max-w-none">
+              <span className="font-mono text-[10px] md:text-xs text-obsidian truncate max-w-30 sm:max-w-none">
                 {projectId || "PENDING..."}
               </span>
             </div>
@@ -952,7 +1055,7 @@ const ChatPage = () => {
                 <div
                   className={`text-sm leading-relaxed p-3 md:p-4 rounded-xl border text-left inline-block ${msg.role === "assistant" ? "bg-white border-border text-obsidian shadow-sm w-full" : "bg-obsidian text-white border-transparent shadow-md max-w-fit"} ${msg.id.toString().startsWith("report") ? "report-card" : ""}`}
                 >
-                  <div className={msg.id.toString().startsWith("report") ? "prose-report" : "whitespace-pre-wrap break-words"}>
+                  <div className={msg.id.toString().startsWith("report") ? "prose-report" : "whitespace-pre-wrap text-wrap"}>
                     {typingMsgId === msg.id ? (
                       <TypewriterMarkdown
                         content={msg.content}
@@ -1014,7 +1117,7 @@ const ChatPage = () => {
                           size={11}
                           className="group-hover:text-brand-blue"
                         />
-                        <span className="group-hover:text-obsidian truncate max-w-[150px]">
+                        <span className="group-hover:text-obsidian truncate max-w-37.5">
                           {src.file}
                         </span>
                       </div>
@@ -1036,7 +1139,7 @@ const ChatPage = () => {
                         <button
                           key={idx}
                           onClick={() => handleSendMessage(suggestion)}
-                          className="group flex items-start sm:items-center gap-3 text-left w-full sm:w-fit max-w-[95%] py-2.5 px-4 bg-gradient-to-r from-brand-emerald/5 to-transparent border border-brand-emerald/20 rounded-2xl hover:border-brand-emerald/40 hover:from-brand-emerald/10 transition-all shadow-sm hover:shadow active:scale-[0.99]"
+                          className="group flex items-start sm:items-center gap-3 text-left w-full sm:w-fit max-w-[95%] py-2.5 px-4 bg-linear-to-r from-brand-emerald/5 to-transparent border border-brand-emerald/20 rounded-2xl hover:border-brand-emerald/40 hover:from-brand-emerald/10 transition-all shadow-sm hover:shadow active:scale-[0.99]"
                         >
                           <div className="shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-white border border-brand-emerald/20 text-brand-emerald shadow-xs mt-0.5 sm:mt-0">
                             <ChevronRight size={14} strokeWidth={2.5} className="group-hover:translate-x-0.5 transition-transform" />
@@ -1047,6 +1150,18 @@ const ChatPage = () => {
                         </button>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* Get Prompt for Fix Button */}
+                {msg.role === "assistant" && typingMsgId !== msg.id && (
+                  <div className="mt-4 flex w-full justify-start">
+                    <button
+                      onClick={() => handleOpenPromptModal(msg.content)}
+                      className="flex items-center gap-1.5 text-[10px] sm:text-xs font-semibold text-brand-blue hover:text-blue-700 bg-brand-blue/5 hover:bg-brand-blue/10 px-3 py-2 rounded-lg transition-colors shadow-sm border border-brand-blue/20 hover:border-brand-blue/40"
+                    >
+                      <Wand2 size={13} /> Get prompt for fix
+                    </button>
                   </div>
                 )}
               </div>
@@ -1110,6 +1225,66 @@ const ChatPage = () => {
           </form>
         </div>
       </main>
+      {/* Prompt Generation Modal */}
+      {promptModalData && (
+        <div className="absolute inset-0 z-100 bg-zinc-950/20 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white border border-border shadow-2xl rounded-2xl w-full max-w-3xl p-5 sm:p-6 flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-obsidian flex items-center gap-2"><Wand2 size={18} className="text-brand-blue" /> Generate Fix Prompt</h2>
+              <button onClick={() => setPromptModalData(false)} className="text-subtle hover:text-obsidian"><X size={20} /></button>
+            </div>
+
+            <div className="mb-4">
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Target AI / IDE</label>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {IDE_OPTIONS.map(ide => (
+                  <button
+                    key={ide}
+                    onClick={() => setSelectedIde(ide)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${selectedIde === ide
+                        ? 'bg-obsidian text-white border-obsidian shadow-md'
+                        : 'bg-zinc-50 text-subtle border-border hover:bg-zinc-100 hover:text-obsidian'
+                      }`}
+                  >
+                    {ide === 'VS Code Copilot' && <Code size={14} />}
+                    {ide === 'Cursor' && <Terminal size={14} />}
+                    {ide === 'Claude' && <Bot size={14} />}
+                    {ide === 'Antigravity' && <Sparkles size={14} />}
+                    {ide === 'Codex' && <Cpu size={14} />}
+                    {ide}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col flex-1 overflow-hidden min-h-0">
+              <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5">Issue Context (Editable)</label>
+              <textarea
+                rows="6"
+                value={promptContext}
+                onChange={(e) => setPromptContext(e.target.value)}
+                className="w-full min-h-[120px] bg-zinc-50 border border-zinc-200 rounded-lg p-3 text-sm font-mono text-obsidian focus:outline-none focus:border-brand-blue resize-y mb-4"
+              />
+
+              <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5">Final Generated Prompt</label>
+              <div className="flex-1 bg-zinc-900 rounded-lg p-4 text-zinc-300 text-sm font-mono overflow-y-auto whitespace-pre-wrap text-wrap border border-zinc-800">
+                {generateTailoredPrompt()}
+              </div>
+            </div>
+
+            <div className="mt-5 flex justify-end gap-3 shrink-0">
+              <button onClick={() => setPromptModalData(false)} className="px-4 py-2 text-sm font-medium text-obsidian bg-zinc-100 hover:bg-zinc-200 rounded-lg transition-colors">
+                Cancel
+              </button>
+              <button onClick={handleCopyPrompt} className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-obsidian hover:bg-zinc-800 rounded-lg transition-colors">
+                {copiedPrompt ? <><Check size={16} /> Copied!</> : <><Copy size={16} /> Copy to Clipboard</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

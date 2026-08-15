@@ -43,7 +43,26 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    const message = error.response?.data?.message || error.message || 'An unexpected error occurred';
+    let message = error.message || 'An unexpected error occurred';
+    
+    if (error.response?.data) {
+        if (error.response.data.encryptedData) {
+            try {
+                const secretKey = import.meta.env.VITE_ENCRYPTION_SECRET;
+                const bytes = CryptoJS.AES.decrypt(error.response.data.encryptedData, secretKey);
+                const decryptedString = bytes.toString(CryptoJS.enc.Utf8);
+                if (decryptedString) {
+                    const decryptedData = JSON.parse(decryptedString);
+                    message = decryptedData.message || message;
+                }
+            } catch (decryptionError) {
+                console.error('Decryption of error failed', decryptionError);
+            }
+        } else {
+            message = error.response.data.message || message;
+        }
+    }
+
     toast.error(message);
     
     // Handle unauthorized
